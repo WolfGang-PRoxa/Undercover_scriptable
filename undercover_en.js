@@ -19,63 +19,10 @@ const LISTS_FOLDER  = "lists";
 const FILE_PLAYERS  = "players.json";
 const FILE_CONFIG   = "config.json";
 
-const BUILTIN_QUARTETS = [
-  ["Cat", "Tiger", "Lion", "Panther"],
-  ["Coca-Cola", "Pepsi", "Dr Pepper", "Sprite"],
-  ["Football", "Rugby", "Soccer", "Basketball"],
-  ["Chocolate", "Cocoa", "Coffee", "Tea"],
-  ["Beach", "Pool", "Lake", "River"],
-  ["Car", "Motorcycle", "Bicycle", "Scooter"],
-  ["New York", "London", "Paris", "Tokyo"],
-  ["Pizza", "Quiche", "Pie", "Pancake"],
-  ["Guitar", "Violin", "Cello", "Bass"],
-  ["Movie Theater", "Theater", "Concert", "Opera"],
-  ["Shark", "Dolphin", "Whale", "Orca"],
-  ["Apple", "Pear", "Peach", "Apricot"],
-  ["Skiing", "Snowboarding", "Sledding", "Ice Skating"],
-  ["Castle", "Manor", "Palace", "Villa"],
-  ["Sun", "Moon", "Star", "Planet"],
-  ["Red", "Blue", "Green", "Yellow"],
-  ["Airplane", "Helicopter", "Hot Air Balloon", "Rocket"],
-  ["Book", "Magazine", "Newspaper", "Comic"],
-  ["Gold", "Silver", "Bronze", "Copper"],
-  ["Dog", "Wolf", "Fox", "Coyote"],
-  ["Table", "Chair", "Stool", "Bench"],
-  ["Pen", "Pencil", "Marker", "Highlighter"],
-  ["Jacket", "Coat", "Sweater", "Vest"],
-  ["Boat", "Ship", "Sailboat", "Submarine"],
-  ["Computer", "Tablet", "Smartphone", "Console"],
-  ["Piano", "Keyboard", "Organ", "Synthesizer"],
-  ["Bakery", "Pastry Shop", "Butcher", "Grocery Store"],
-  ["Pine", "Oak", "Birch", "Maple"],
-  ["Cake", "Cookie", "Pie", "Brownie"],
-  ["Mountain", "Hill", "Valley", "Plateau"],
-  ["Ice Cream", "Sorbet", "Gelato", "Slushie"],
-  ["Pants", "Shorts", "Jeans", "Sweatpants"],
-  ["Beer", "Wine", "Cider", "Champagne"],
-  ["Train", "Subway", "Tram", "Bus"],
-  ["Eagle", "Falcon", "Owl", "Hawk"],
-  ["Banana", "Orange", "Tangerine", "Grapefruit"],
-  ["Glasses", "Contacts", "Binoculars", "Microscope"],
-  ["Shower", "Bath", "Jacuzzi", "Sauna"],
-  ["Earth", "Mars", "Venus", "Jupiter"],
-  ["Pool", "Sea", "Ocean", "Lake"],
-  ["Strawberry", "Raspberry", "Blueberry", "Blackberry"],
-  ["Bedroom", "Living Room", "Kitchen", "Bathroom"],
-  ["Winter", "Summer", "Spring", "Autumn"],
-  ["Horse", "Pony", "Donkey", "Mule"],
-  ["Giraffe", "Zebra", "Elephant", "Hippopotamus"],
-  ["Knife", "Fork", "Spoon", "Spatula"],
-  ["Spider", "Ant", "Bee", "Mosquito"],
-  ["Sky", "Cloud", "Rain", "Snow"],
-  ["Diamond", "Ruby", "Emerald", "Sapphire"],
-  ["Firefighter", "Paramedic", "Doctor", "Nurse"]
-];
-
 let sessionConfig = {
   showRoleInMessage: false,
   showPseudoInMessage: false,
-  activeListName: null,
+  activeListName: "default_en",
 };
 
 let appState = {
@@ -111,12 +58,21 @@ function playersPath() { return getFM().joinPath(rootPath(), FILE_PLAYERS); }
 function configPath() { return getFM().joinPath(rootPath(), FILE_CONFIG); }
 function usedWordsPath(listName) { return getFM().joinPath(listsPath(), listName + "__used_words.json"); }
 
-function ensureStorage() {
+async function ensureStorage() {
   const fm = getFM();
   if (!fm.fileExists(rootPath())) fm.createDirectory(rootPath(), true);
   if (!fm.fileExists(listsPath())) fm.createDirectory(listsPath(), true);
   if (!fm.fileExists(playersPath())) writeJSON(playersPath(), []);
   if (!fm.fileExists(configPath())) saveConfig();
+
+  const defaultListPath = fm.joinPath(listsPath(), "default_en.json");
+  if (!fm.fileExists(defaultListPath)) {
+    try {
+      let req = new Request("https://raw.githubusercontent.com/WolfGang-PRoxa/Undercover_scriptable/main/undercover/lists/default_en.json");
+      let data = await req.loadString();
+      if (req.response.statusCode === 200) fm.writeString(defaultListPath, data);
+    } catch (e) {}
+  }
 }
 
 function writeJSON(path, data) { getFM().writeString(path, JSON.stringify(data, null, 2)); }
@@ -194,16 +150,13 @@ function loadUsedWords(listName) {
 }
 
 function pickPair(listName) {
-  let allItems = !listName ? BUILTIN_QUARTETS : loadExternalList(listName);
-  if (!allItems || allItems.length === 0) allItems = BUILTIN_QUARTETS;
-  
-  if (!listName) {
-    const item = allItems[Math.floor(Math.random() * allItems.length)];
-    const shuffled = [...item].sort(() => 0.5 - Math.random());
-    return { civil: shuffled[0], undercover: shuffled[1] };
+  let activeList = listName || "default_en";
+  let allItems = loadExternalList(activeList);
+  if (!allItems || allItems.length === 0) {
+    allItems = [["Cat", "Dog", "Wolf", "Fox"], ["Sun", "Moon", "Star", "Planet"]];
   }
 
-  const used = loadUsedWords(listName);
+  const used = loadUsedWords(activeList);
   const usedSet = new Set(used.map(u => u.id || (u.civil + "|" + u.undercover)));
   
   let remaining = allItems.filter(item => {
@@ -214,7 +167,7 @@ function pickPair(listName) {
   });
 
   if (remaining.length === 0) {
-    writeJSON(usedWordsPath(listName), []);
+    writeJSON(usedWordsPath(activeList), []);
     remaining = allItems;
   }
 
@@ -230,9 +183,9 @@ function pickPair(listName) {
     idToSave = chosenItem.civil + "|" + chosenItem.undercover;
   }
 
-  const usedUpdated = loadUsedWords(listName);
+  const usedUpdated = loadUsedWords(activeList);
   usedUpdated.push({ id: idToSave, civil: chosenPair.civil, undercover: chosenPair.undercover, date: new Date().toISOString() });
-  writeJSON(usedWordsPath(listName), usedUpdated);
+  writeJSON(usedWordsPath(activeList), usedUpdated);
   return chosenPair;
 }
 

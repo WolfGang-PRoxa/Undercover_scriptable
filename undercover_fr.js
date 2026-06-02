@@ -19,63 +19,10 @@ const LISTS_FOLDER  = "lists";
 const FILE_PLAYERS  = "players.json";
 const FILE_CONFIG   = "config.json";
 
-const BUILTIN_QUARTETS = [
-  ["Chat", "Tigre", "Lion", "Panthère"],
-  ["Coca-Cola", "Pepsi", "Oasis", "Orangina"],
-  ["Football", "Rugby", "Handball", "Basketball"],
-  ["Chocolat", "Cacao", "Café", "Thé"],
-  ["Plage", "Piscine", "Lac", "Rivière"],
-  ["Voiture", "Moto", "Vélo", "Scooter"],
-  ["Paris", "Lyon", "Marseille", "Bordeaux"],
-  ["Pizza", "Quiche", "Tarte", "Crêpe"],
-  ["Guitare", "Violon", "Violoncelle", "Basse"],
-  ["Cinéma", "Théâtre", "Concert", "Opéra"],
-  ["Requin", "Dauphin", "Baleine", "Orque"],
-  ["Pomme", "Poire", "Pêche", "Abricot"],
-  ["Ski", "Snowboard", "Luge", "Patin à glace"],
-  ["Château", "Manoir", "Palais", "Villa"],
-  ["Soleil", "Lune", "Étoile", "Planète"],
-  ["Rouge", "Bleu", "Vert", "Jaune"],
-  ["Avion", "Hélicoptère", "Montgolfière", "Fusée"],
-  ["Livre", "Magazine", "Journal", "Bande dessinée"],
-  ["Or", "Argent", "Bronze", "Cuivre"],
-  ["Chien", "Loup", "Renard", "Coyote"],
-  ["Table", "Chaise", "Tabouret", "Banc"],
-  ["Stylo", "Crayon", "Feutre", "Surligneur"],
-  ["Veste", "Manteau", "Pull", "Gilet"],
-  ["Bateau", "Navire", "Voilier", "Sous-marin"],
-  ["Ordinateur", "Tablette", "Smartphone", "Console"],
-  ["Piano", "Clavier", "Orgue", "Synthétiseur"],
-  ["Boulangerie", "Pâtisserie", "Boucherie", "Épicerie"],
-  ["Sapin", "Chêne", "Bouleau", "Érable"],
-  ["Gâteau", "Biscuit", "Tarte", "Brownie"],
-  ["Montagne", "Colline", "Vallée", "Plateau"],
-  ["Glace", "Sorbet", "Crème glacée", "Granité"],
-  ["Pantalon", "Short", "Jeans", "Jogging"],
-  ["Bière", "Vin", "Cidre", "Champagne"],
-  ["Train", "Métro", "Tramway", "Bus"],
-  ["Aigle", "Faucon", "Chouette", "Hibou"],
-  ["Banane", "Orange", "Clémentine", "Pamplemousse"],
-  ["Lunettes", "Lentilles", "Jumelles", "Microscope"],
-  ["Douche", "Bain", "Jacuzzi", "Hammam"],
-  ["Terre", "Mars", "Vénus", "Jupiter"],
-  ["Piscine", "Mer", "Océan", "Lac"],
-  ["Fraise", "Framboise", "Myrtille", "Mûre"],
-  ["Chambre", "Salon", "Cuisine", "Salle de bain"],
-  ["Hiver", "Été", "Printemps", "Automne"],
-  ["Cheval", "Poney", "Âne", "Mule"],
-  ["Girafe", "Zèbre", "Éléphant", "Hippopotame"],
-  ["Couteau", "Fourchette", "Cuillère", "Spatule"],
-  ["Araignée", "Fourmi", "Abeille", "Moustique"],
-  ["Ciel", "Nuage", "Pluie", "Neige"],
-  ["Diamant", "Rubis", "Émeraude", "Saphir"],
-  ["Pompier", "Ambulancier", "Médecin", "Infirmier"]
-];
-
 let sessionConfig = {
   showRoleInMessage: false,
   showPseudoInMessage: false,
-  activeListName: null,
+  activeListName: "default_fr",
 };
 
 let appState = {
@@ -194,16 +141,13 @@ function loadUsedWords(listName) {
 }
 
 function pickPair(listName) {
-  let allItems = !listName ? BUILTIN_QUARTETS : loadExternalList(listName);
-  if (!allItems || allItems.length === 0) allItems = BUILTIN_QUARTETS;
-  
-  if (!listName) {
-    const item = allItems[Math.floor(Math.random() * allItems.length)];
-    const shuffled = [...item].sort(() => 0.5 - Math.random());
-    return { civil: shuffled[0], undercover: shuffled[1] };
+  let activeList = listName || "default_fr";
+  let allItems = loadExternalList(activeList);
+  if (!allItems || allItems.length === 0) {
+    allItems = [["Chat", "Chien", "Loup", "Renard"], ["Soleil", "Lune", "Étoile", "Planète"]];
   }
 
-  const used = loadUsedWords(listName);
+  const used = loadUsedWords(activeList);
   const usedSet = new Set(used.map(u => u.id || (u.civil + "|" + u.undercover)));
   
   let remaining = allItems.filter(item => {
@@ -214,7 +158,7 @@ function pickPair(listName) {
   });
 
   if (remaining.length === 0) {
-    writeJSON(usedWordsPath(listName), []);
+    writeJSON(usedWordsPath(activeList), []);
     remaining = allItems;
   }
 
@@ -230,9 +174,9 @@ function pickPair(listName) {
     idToSave = chosenItem.civil + "|" + chosenItem.undercover;
   }
 
-  const usedUpdated = loadUsedWords(listName);
+  const usedUpdated = loadUsedWords(activeList);
   usedUpdated.push({ id: idToSave, civil: chosenPair.civil, undercover: chosenPair.undercover, date: new Date().toISOString() });
-  writeJSON(usedWordsPath(listName), usedUpdated);
+  writeJSON(usedWordsPath(activeList), usedUpdated);
   return chosenPair;
 }
 
@@ -936,7 +880,7 @@ async function showOnScreen() {
 // ─────────────────────────────────────────────
 
 async function main() {
-  ensureStorage();
+  await ensureStorage();
   loadConfig();
   appState.players = loadPlayers();
   
