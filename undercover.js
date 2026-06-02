@@ -99,7 +99,19 @@ function loadPlayers() {
   try {
     if (fm.isFileStoredIniCloud && fm.isFileStoredIniCloud(path)) fm.downloadFileFromiCloud(path);
     const data = JSON.parse(fm.readString(path));
-    return Array.isArray(data) ? data.map(p => ({ ...p, score: p.score || 0 })) : [];
+    return Array.isArray(data) ? data.map(p => {
+      let r = p.roles || {};
+      let nRole = (d) => {
+        if (typeof d === 'number') return { played: d, won: 0, lost: 0 };
+        if (typeof d === 'object' && d !== null) return { played: d.played || 0, won: d.won || 0, lost: d.lost || 0 };
+        return { played: 0, won: 0, lost: 0 };
+      };
+      return { 
+        ...p, 
+        score: p.score || 0,
+        roles: { civil: nRole(r.civil), infiltre: nRole(r.infiltre), mrwhite: nRole(r.mrwhite) }
+      };
+    }) : [];
   } catch (e) { return []; }
 }
 
@@ -261,15 +273,16 @@ async function startApp() {
         
         sorted.forEach((p, idx) => {
           let med = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "🔹";
-          let pRoles = p.roles || { civil: 0, infiltre: 0, mrwhite: 0 };
-          let rolesStr = ` 🤠 ${pRoles.civil} | 🕵️ ${pRoles.infiltre} | 👻 ${pRoles.mrwhite}`;
+          let pRoles = p.roles || { civil: {played:0, won:0, lost:0}, infiltre: {played:0, won:0, lost:0}, mrwhite: {played:0, won:0, lost:0} };
+          let rolesStr = ` 🤠 ${pRoles.civil.played} | 🕵️ ${pRoles.infiltre.played} | 👻 ${pRoles.mrwhite.played}`;
           let sub = (p.pseudo ? `Pseudo: ${p.pseudo}` : p.phone) + rolesStr;
           
           addRow(med, p.name, sub, null, async () => {
             let a = new Alert();
             a.title = `Gérer ${p.name}`;
-            a.message = `Score : ${p.score || 0}\nCivils: ${pRoles.civil} | Infiltrés: ${pRoles.infiltre} | Mr. White: ${pRoles.mrwhite}`;
+            a.message = `Score : ${p.score || 0}\nCivils: ${pRoles.civil.won}V ${pRoles.civil.lost}D | Infiltrés: ${pRoles.infiltre.won}V ${pRoles.infiltre.lost}D | Mr. White: ${pRoles.mrwhite.won}V ${pRoles.mrwhite.lost}D`;
             a.addAction("Modifier le score");
+            a.addAction("Gérer les stats de rôles");
             a.addDestructiveAction("Réinitialiser le score");
             a.addCancelAction("Annuler");
             let res = await a.presentAlert();
@@ -289,6 +302,47 @@ async function startApp() {
                 }
               }
             } else if (res === 1) {
+              let aStats = new Alert();
+              aStats.title = "Gérer les stats";
+              aStats.message = "Modifiez les parties jouées/gagnées/perdues.";
+              aStats.addAction("🤠 Civils");
+              aStats.addAction("🕵️ Infiltrés");
+              aStats.addAction("👻 Mister White");
+              aStats.addDestructiveAction("Tout réinitialiser (stats)");
+              aStats.addCancelAction("Annuler");
+              let resStats = await aStats.presentAlert();
+              
+              if (resStats >= 0 && resStats <= 2) {
+                let roleKey = resStats === 0 ? "civil" : resStats === 1 ? "infiltre" : "mrwhite";
+                let roleName = resStats === 0 ? "Civils" : resStats === 1 ? "Infiltrés" : "Mister White";
+                let aEdit = new Alert();
+                aEdit.title = `Stats : ${roleName}`;
+                aEdit.addTextField("Jouées", String(pRoles[roleKey].played));
+                aEdit.addTextField("Gagnées", String(pRoles[roleKey].won));
+                aEdit.addTextField("Perdues", String(pRoles[roleKey].lost));
+                aEdit.addAction("Enregistrer");
+                aEdit.addCancelAction("Annuler");
+                if (await aEdit.presentAlert() === 0) {
+                  let pIdx = appState.players.findIndex(x => x.phone === p.phone);
+                  if (pIdx >= 0) { 
+                    appState.players[pIdx].roles[roleKey].played = parseInt(aEdit.textFieldValue(0)) || 0;
+                    appState.players[pIdx].roles[roleKey].won = parseInt(aEdit.textFieldValue(1)) || 0;
+                    appState.players[pIdx].roles[roleKey].lost = parseInt(aEdit.textFieldValue(2)) || 0;
+                    savePlayers(); render(); 
+                  }
+                }
+              } else if (resStats === 3) {
+                  let pIdx = appState.players.findIndex(x => x.phone === p.phone);
+                  if (pIdx >= 0) { 
+                    appState.players[pIdx].roles = { 
+                      civil: {played:0, won:0, lost:0}, 
+                      infiltre: {played:0, won:0, lost:0}, 
+                      mrwhite: {played:0, won:0, lost:0} 
+                    };
+                    savePlayers(); render(); 
+                  }
+              }
+            } else if (res === 2) {
               let pIdx = appState.players.findIndex(x => x.phone === p.phone);
               if (pIdx >= 0) { appState.players[pIdx].score = 0; savePlayers(); render(); }
             }
@@ -310,7 +364,7 @@ async function startApp() {
             let n = a.textFieldValue(0).trim();
             let p = normalizePhone(a.textFieldValue(1).trim());
             if (n && isValidPhone(p)) {
-              if (!appState.players.some(x => x.phone === p)) { appState.players.push({name: n, phone: p, score: 0, roles: { civil: 0, infiltre: 0, mrwhite: 0 }}); savePlayers(); render(); }
+              if (!appState.players.some(x => x.phone === p)) { appState.players.push({name: n, phone: p, score: 0, roles: { civil: {played: 0, won: 0, lost: 0}, infiltre: {played: 0, won: 0, lost: 0}, mrwhite: {played: 0, won: 0, lost: 0} }}); savePlayers(); render(); }
             }
           }
         });
@@ -383,7 +437,7 @@ async function startApp() {
                 chosenPhone = phones[res];
               }
               // Ajout du joueur avec un score initialisé à 0
-              appState.players.push({name: cName, phone: chosenPhone, score: 0});
+              appState.players.push({name: cName, phone: chosenPhone, score: 0, roles: { civil: {played: 0, won: 0, lost: 0}, infiltre: {played: 0, won: 0, lost: 0}, mrwhite: {played: 0, won: 0, lost: 0} }});
               savePlayers(); render();
             });
           }
@@ -635,27 +689,40 @@ async function processEndGame(winnerType, mrWhiteAssign = null) {
   let title = "🎉 FIN DE PARTIE";
   let msg = "";
   
-  const incrementWin = (phone, roleKey) => {
+  const updateStats = (phone, roleKey, isWin) => {
     let pObj = appState.players.find(p => p.phone === phone);
-    if (pObj && pObj.roles && typeof pObj.roles[roleKey] === 'object') {
-      pObj.roles[roleKey].won++;
+    if (pObj && pObj.roles) {
+      if (!pObj.roles[roleKey]) pObj.roles[roleKey] = {played: 0, won: 0, lost: 0};
+      pObj.roles[roleKey].played++;
+      if (isWin) pObj.roles[roleKey].won++;
+      else pObj.roles[roleKey].lost++;
     }
   };
+
+  appState.game.assignments.forEach(a => {
+    let roleKey = a.role === "Civil" ? "civil" : a.role === "Infiltré" ? "infiltre" : "mrwhite";
+    let isWin = false;
+    if (winnerType === "civils" && a.role === "Civil") isWin = true;
+    else if (winnerType === "infiltres" && (a.role === "Infiltré" || a.role === "Mister White")) isWin = true;
+    else if (winnerType === "mrwhite" && a.role === "Mister White" && a.player.phone === mrWhiteAssign.player.phone) isWin = true;
+    
+    updateStats(a.player.phone, roleKey, isWin);
+  });
   
   if (winnerType === "civils") {
     msg = "Les Civils ont gagné ! Tous les imposteurs sont éliminés.\n(+2 pts par Civil)";
-    appState.game.assignments.forEach(a => { if(a.role === "Civil") { addScore(a.player.phone, 2); incrementWin(a.player.phone, "civil"); } });
+    appState.game.assignments.forEach(a => { if(a.role === "Civil") { addScore(a.player.phone, 2); } });
   } 
   else if (winnerType === "infiltres") {
     msg = "Les Infiltrés et Mr. White ont survécu ! Il ne reste qu'un Civil.\n(+10 pts Undercover / +6 pts Mr.White)";
     appState.game.assignments.forEach(a => { 
-      if(a.role === "Infiltré") { addScore(a.player.phone, 10); incrementWin(a.player.phone, "infiltre"); }
-      if(a.role === "Mister White") { addScore(a.player.phone, 6); incrementWin(a.player.phone, "mrwhite"); }
+      if(a.role === "Infiltré") { addScore(a.player.phone, 10); }
+      if(a.role === "Mister White") { addScore(a.player.phone, 6); }
     });
   } 
   else if (winnerType === "mrwhite") {
     msg = "Mr. White a trouvé le mot et vole la victoire !\n(+6 pts pour lui)";
-    addScore(mrWhiteAssign.player.phone, 6); incrementWin(mrWhiteAssign.player.phone, "mrwhite");
+    addScore(mrWhiteAssign.player.phone, 6);
   }
 
   savePlayers();
