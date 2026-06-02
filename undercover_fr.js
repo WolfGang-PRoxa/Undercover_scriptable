@@ -19,22 +19,57 @@ const LISTS_FOLDER  = "lists";
 const FILE_PLAYERS  = "players.json";
 const FILE_CONFIG   = "config.json";
 
-const BUILTIN_PAIRS = [
-  { civil: "Chat",        undercover: "Tigre" },
-  { civil: "Coca-Cola",   undercover: "Pepsi" },
-  { civil: "Football",    undercover: "Rugby" },
-  { civil: "Chocolat",    undercover: "Cacao" },
-  { civil: "Plage",       undercover: "Piscine" },
-  { civil: "Voiture",     undercover: "Moto" },
-  { civil: "Paris",       undercover: "Lyon" },
-  { civil: "Pizza",       undercover: "Quiche" },
-  { civil: "Guitare",     undercover: "Violon" },
-  { civil: "Cinéma",      undercover: "Théâtre" },
-  { civil: "Requin",      undercover: "Dauphin" },
-  { civil: "Café",        undercover: "Thé" },
-  { civil: "Ski",         undercover: "Snowboard" },
-  { civil: "Château",     undercover: "Manoir" },
-  { civil: "Soleil",      undercover: "Lune" }
+const BUILTIN_QUARTETS = [
+  ["Chat", "Tigre", "Lion", "Panthère"],
+  ["Coca-Cola", "Pepsi", "Oasis", "Orangina"],
+  ["Football", "Rugby", "Handball", "Basketball"],
+  ["Chocolat", "Cacao", "Café", "Thé"],
+  ["Plage", "Piscine", "Lac", "Rivière"],
+  ["Voiture", "Moto", "Vélo", "Scooter"],
+  ["Paris", "Lyon", "Marseille", "Bordeaux"],
+  ["Pizza", "Quiche", "Tarte", "Crêpe"],
+  ["Guitare", "Violon", "Violoncelle", "Basse"],
+  ["Cinéma", "Théâtre", "Concert", "Opéra"],
+  ["Requin", "Dauphin", "Baleine", "Orque"],
+  ["Pomme", "Poire", "Pêche", "Abricot"],
+  ["Ski", "Snowboard", "Luge", "Patin à glace"],
+  ["Château", "Manoir", "Palais", "Villa"],
+  ["Soleil", "Lune", "Étoile", "Planète"],
+  ["Rouge", "Bleu", "Vert", "Jaune"],
+  ["Avion", "Hélicoptère", "Montgolfière", "Fusée"],
+  ["Livre", "Magazine", "Journal", "Bande dessinée"],
+  ["Or", "Argent", "Bronze", "Cuivre"],
+  ["Chien", "Loup", "Renard", "Coyote"],
+  ["Table", "Chaise", "Tabouret", "Banc"],
+  ["Stylo", "Crayon", "Feutre", "Surligneur"],
+  ["Veste", "Manteau", "Pull", "Gilet"],
+  ["Bateau", "Navire", "Voilier", "Sous-marin"],
+  ["Ordinateur", "Tablette", "Smartphone", "Console"],
+  ["Piano", "Clavier", "Orgue", "Synthétiseur"],
+  ["Boulangerie", "Pâtisserie", "Boucherie", "Épicerie"],
+  ["Sapin", "Chêne", "Bouleau", "Érable"],
+  ["Gâteau", "Biscuit", "Tarte", "Brownie"],
+  ["Montagne", "Colline", "Vallée", "Plateau"],
+  ["Glace", "Sorbet", "Crème glacée", "Granité"],
+  ["Pantalon", "Short", "Jeans", "Jogging"],
+  ["Bière", "Vin", "Cidre", "Champagne"],
+  ["Train", "Métro", "Tramway", "Bus"],
+  ["Aigle", "Faucon", "Chouette", "Hibou"],
+  ["Banane", "Orange", "Clémentine", "Pamplemousse"],
+  ["Lunettes", "Lentilles", "Jumelles", "Microscope"],
+  ["Douche", "Bain", "Jacuzzi", "Hammam"],
+  ["Terre", "Mars", "Vénus", "Jupiter"],
+  ["Piscine", "Mer", "Océan", "Lac"],
+  ["Fraise", "Framboise", "Myrtille", "Mûre"],
+  ["Chambre", "Salon", "Cuisine", "Salle de bain"],
+  ["Hiver", "Été", "Printemps", "Automne"],
+  ["Cheval", "Poney", "Âne", "Mule"],
+  ["Girafe", "Zèbre", "Éléphant", "Hippopotame"],
+  ["Couteau", "Fourchette", "Cuillère", "Spatule"],
+  ["Araignée", "Fourmi", "Abeille", "Moustique"],
+  ["Ciel", "Nuage", "Pluie", "Neige"],
+  ["Diamant", "Rubis", "Émeraude", "Saphir"],
+  ["Pompier", "Ambulancier", "Médecin", "Infirmier"]
 ];
 
 let sessionConfig = {
@@ -144,7 +179,7 @@ function loadExternalList(listName) {
   try {
     if (fm.isFileStoredIniCloud && fm.isFileStoredIniCloud(path)) fm.downloadFileFromiCloud(path);
     const data = JSON.parse(fm.readString(path));
-    return Array.isArray(data) ? data.filter(p => p.civil && p.undercover) : null;
+    return Array.isArray(data) ? data.filter(p => (p.civil && p.undercover) || (Array.isArray(p) && p.length >= 2)) : null;
   } catch (e) { return null; }
 }
 
@@ -159,24 +194,46 @@ function loadUsedWords(listName) {
 }
 
 function pickPair(listName) {
-  let allPairs = !listName ? BUILTIN_PAIRS : loadExternalList(listName);
-  if (!allPairs || allPairs.length === 0) allPairs = BUILTIN_PAIRS;
-  if (!listName) return allPairs[Math.floor(Math.random() * allPairs.length)];
+  let allItems = !listName ? BUILTIN_QUARTETS : loadExternalList(listName);
+  if (!allItems || allItems.length === 0) allItems = BUILTIN_QUARTETS;
+  
+  if (!listName) {
+    const item = allItems[Math.floor(Math.random() * allItems.length)];
+    const shuffled = [...item].sort(() => 0.5 - Math.random());
+    return { civil: shuffled[0], undercover: shuffled[1] };
+  }
 
   const used = loadUsedWords(listName);
-  const usedSet = new Set(used.map(u => u.civil + "|" + u.undercover));
-  let remaining = allPairs.filter(p => !usedSet.has(p.civil + "|" + p.undercover));
+  const usedSet = new Set(used.map(u => u.id || (u.civil + "|" + u.undercover)));
+  
+  let remaining = allItems.filter(item => {
+    let id;
+    if (Array.isArray(item)) id = [...item].sort().join("-");
+    else id = item.civil + "|" + item.undercover;
+    return !usedSet.has(id);
+  });
 
   if (remaining.length === 0) {
     writeJSON(usedWordsPath(listName), []);
-    remaining = allPairs;
+    remaining = allItems;
   }
 
-  const chosen = remaining[Math.floor(Math.random() * remaining.length)];
+  const chosenItem = remaining[Math.floor(Math.random() * remaining.length)];
+  let chosenPair;
+  let idToSave;
+  if (Array.isArray(chosenItem)) {
+    const shuffled = [...chosenItem].sort(() => 0.5 - Math.random());
+    chosenPair = { civil: shuffled[0], undercover: shuffled[1] };
+    idToSave = [...chosenItem].sort().join("-");
+  } else {
+    chosenPair = { civil: chosenItem.civil, undercover: chosenItem.undercover };
+    idToSave = chosenItem.civil + "|" + chosenItem.undercover;
+  }
+
   const usedUpdated = loadUsedWords(listName);
-  usedUpdated.push({ civil: chosen.civil, undercover: chosen.undercover, date: new Date().toISOString() });
+  usedUpdated.push({ id: idToSave, civil: chosenPair.civil, undercover: chosenPair.undercover, date: new Date().toISOString() });
   writeJSON(usedWordsPath(listName), usedUpdated);
-  return chosen;
+  return chosenPair;
 }
 
 // ─────────────────────────────────────────────

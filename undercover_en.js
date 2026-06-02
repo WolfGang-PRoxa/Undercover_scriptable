@@ -19,22 +19,57 @@ const LISTS_FOLDER  = "lists";
 const FILE_PLAYERS  = "players.json";
 const FILE_CONFIG   = "config.json";
 
-const BUILTIN_PAIRS = [
-  { civil: "Cat",           undercover: "Tiger" },
-  { civil: "Coca-Cola",     undercover: "Pepsi" },
-  { civil: "Football",      undercover: "Rugby" },
-  { civil: "Chocolate",     undercover: "Cocoa" },
-  { civil: "Beach",         undercover: "Pool" },
-  { civil: "Car",           undercover: "Motorcycle" },
-  { civil: "New York",      undercover: "London" },
-  { civil: "Pizza",         undercover: "Quiche" },
-  { civil: "Guitar",        undercover: "Violin" },
-  { civil: "Movie Theater", undercover: "Theater" },
-  { civil: "Shark",         undercover: "Dolphin" },
-  { civil: "Coffee",        undercover: "Tea" },
-  { civil: "Skiing",        undercover: "Snowboarding" },
-  { civil: "Castle",        undercover: "Manor" },
-  { civil: "Sun",           undercover: "Moon" }
+const BUILTIN_QUARTETS = [
+  ["Cat", "Tiger", "Lion", "Panther"],
+  ["Coca-Cola", "Pepsi", "Dr Pepper", "Sprite"],
+  ["Football", "Rugby", "Soccer", "Basketball"],
+  ["Chocolate", "Cocoa", "Coffee", "Tea"],
+  ["Beach", "Pool", "Lake", "River"],
+  ["Car", "Motorcycle", "Bicycle", "Scooter"],
+  ["New York", "London", "Paris", "Tokyo"],
+  ["Pizza", "Quiche", "Pie", "Pancake"],
+  ["Guitar", "Violin", "Cello", "Bass"],
+  ["Movie Theater", "Theater", "Concert", "Opera"],
+  ["Shark", "Dolphin", "Whale", "Orca"],
+  ["Apple", "Pear", "Peach", "Apricot"],
+  ["Skiing", "Snowboarding", "Sledding", "Ice Skating"],
+  ["Castle", "Manor", "Palace", "Villa"],
+  ["Sun", "Moon", "Star", "Planet"],
+  ["Red", "Blue", "Green", "Yellow"],
+  ["Airplane", "Helicopter", "Hot Air Balloon", "Rocket"],
+  ["Book", "Magazine", "Newspaper", "Comic"],
+  ["Gold", "Silver", "Bronze", "Copper"],
+  ["Dog", "Wolf", "Fox", "Coyote"],
+  ["Table", "Chair", "Stool", "Bench"],
+  ["Pen", "Pencil", "Marker", "Highlighter"],
+  ["Jacket", "Coat", "Sweater", "Vest"],
+  ["Boat", "Ship", "Sailboat", "Submarine"],
+  ["Computer", "Tablet", "Smartphone", "Console"],
+  ["Piano", "Keyboard", "Organ", "Synthesizer"],
+  ["Bakery", "Pastry Shop", "Butcher", "Grocery Store"],
+  ["Pine", "Oak", "Birch", "Maple"],
+  ["Cake", "Cookie", "Pie", "Brownie"],
+  ["Mountain", "Hill", "Valley", "Plateau"],
+  ["Ice Cream", "Sorbet", "Gelato", "Slushie"],
+  ["Pants", "Shorts", "Jeans", "Sweatpants"],
+  ["Beer", "Wine", "Cider", "Champagne"],
+  ["Train", "Subway", "Tram", "Bus"],
+  ["Eagle", "Falcon", "Owl", "Hawk"],
+  ["Banana", "Orange", "Tangerine", "Grapefruit"],
+  ["Glasses", "Contacts", "Binoculars", "Microscope"],
+  ["Shower", "Bath", "Jacuzzi", "Sauna"],
+  ["Earth", "Mars", "Venus", "Jupiter"],
+  ["Pool", "Sea", "Ocean", "Lake"],
+  ["Strawberry", "Raspberry", "Blueberry", "Blackberry"],
+  ["Bedroom", "Living Room", "Kitchen", "Bathroom"],
+  ["Winter", "Summer", "Spring", "Autumn"],
+  ["Horse", "Pony", "Donkey", "Mule"],
+  ["Giraffe", "Zebra", "Elephant", "Hippopotamus"],
+  ["Knife", "Fork", "Spoon", "Spatula"],
+  ["Spider", "Ant", "Bee", "Mosquito"],
+  ["Sky", "Cloud", "Rain", "Snow"],
+  ["Diamond", "Ruby", "Emerald", "Sapphire"],
+  ["Firefighter", "Paramedic", "Doctor", "Nurse"]
 ];
 
 let sessionConfig = {
@@ -144,7 +179,7 @@ function loadExternalList(listName) {
   try {
     if (fm.isFileStoredIniCloud && fm.isFileStoredIniCloud(path)) fm.downloadFileFromiCloud(path);
     const data = JSON.parse(fm.readString(path));
-    return Array.isArray(data) ? data.filter(p => p.civil && p.undercover) : null;
+    return Array.isArray(data) ? data.filter(p => (p.civil && p.undercover) || (Array.isArray(p) && p.length >= 2)) : null;
   } catch (e) { return null; }
 }
 
@@ -159,24 +194,46 @@ function loadUsedWords(listName) {
 }
 
 function pickPair(listName) {
-  let allPairs = !listName ? BUILTIN_PAIRS : loadExternalList(listName);
-  if (!allPairs || allPairs.length === 0) allPairs = BUILTIN_PAIRS;
-  if (!listName) return allPairs[Math.floor(Math.random() * allPairs.length)];
+  let allItems = !listName ? BUILTIN_QUARTETS : loadExternalList(listName);
+  if (!allItems || allItems.length === 0) allItems = BUILTIN_QUARTETS;
+  
+  if (!listName) {
+    const item = allItems[Math.floor(Math.random() * allItems.length)];
+    const shuffled = [...item].sort(() => 0.5 - Math.random());
+    return { civil: shuffled[0], undercover: shuffled[1] };
+  }
 
   const used = loadUsedWords(listName);
-  const usedSet = new Set(used.map(u => u.civil + "|" + u.undercover));
-  let remaining = allPairs.filter(p => !usedSet.has(p.civil + "|" + p.undercover));
+  const usedSet = new Set(used.map(u => u.id || (u.civil + "|" + u.undercover)));
+  
+  let remaining = allItems.filter(item => {
+    let id;
+    if (Array.isArray(item)) id = [...item].sort().join("-");
+    else id = item.civil + "|" + item.undercover;
+    return !usedSet.has(id);
+  });
 
   if (remaining.length === 0) {
     writeJSON(usedWordsPath(listName), []);
-    remaining = allPairs;
+    remaining = allItems;
   }
 
-  const chosen = remaining[Math.floor(Math.random() * remaining.length)];
+  const chosenItem = remaining[Math.floor(Math.random() * remaining.length)];
+  let chosenPair;
+  let idToSave;
+  if (Array.isArray(chosenItem)) {
+    const shuffled = [...chosenItem].sort(() => 0.5 - Math.random());
+    chosenPair = { civil: shuffled[0], undercover: shuffled[1] };
+    idToSave = [...chosenItem].sort().join("-");
+  } else {
+    chosenPair = { civil: chosenItem.civil, undercover: chosenItem.undercover };
+    idToSave = chosenItem.civil + "|" + chosenItem.undercover;
+  }
+
   const usedUpdated = loadUsedWords(listName);
-  usedUpdated.push({ civil: chosen.civil, undercover: chosen.undercover, date: new Date().toISOString() });
+  usedUpdated.push({ id: idToSave, civil: chosenPair.civil, undercover: chosenPair.undercover, date: new Date().toISOString() });
   writeJSON(usedWordsPath(listName), usedUpdated);
-  return chosen;
+  return chosenPair;
 }
 
 // ─────────────────────────────────────────────

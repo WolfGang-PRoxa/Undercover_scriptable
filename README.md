@@ -160,8 +160,8 @@ Si une condition de victoire est remplie :
 Le script permet l'import de listes JSON. Celles-ci doivent être déposées dans le dossier iCloud `Scriptable/Undercover/lists/` sous la forme :
 ```json
 [
-  { "civil": "Mot A", "undercover": "Mot B" },
-  { "civil": "Chien", "undercover": "Chat" }
+  [ "Mot A", "Mot B", "Mot C", "Mot D" ],
+  [ "Chien", "Chat", "Loup", "Renard" ]
 ]
 ```
-L'interface de "Configuration avancée" permet alors de sélectionner ces listes à la volée sans toucher au code source.
+L'interface de "Configuration avancée" permet alors de sélectionner ces listes à la volée sans toucher au code source. Note : l'ancien format par paire (`[{ "civil": "...", "undercover": "..." }]`) est toujours pris en charge par rétrocompatibilité.
