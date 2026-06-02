@@ -203,7 +203,7 @@ async function startApp() {
         table.addRow(row);
       };
 
-      const addRow = (icon, title, subtitle, color, onClick, dismiss = false) => {
+      const addRow = (icon, title, subtitle, color, onClick, dismiss = false, rightText = null) => {
         let row = new UITableRow();
         row.height = 55;
         row.dismissOnSelect = dismiss;
@@ -211,8 +211,15 @@ async function startApp() {
         cell.titleFont = Font.systemFont(18);
         if (subtitle) cell.subtitleFont = Font.systemFont(13);
         if (color) { cell.titleColor = color; cell.subtitleColor = color; }
+        if (rightText) {
+          let rCell = row.addText(rightText);
+          rCell.rightAligned();
+          rCell.titleColor = Color.orange();
+          rCell.titleFont = Font.boldSystemFont(18);
+        }
         if (onClick) row.onSelect = onClick;
         table.addRow(row);
+        return row;
       };
 
       // ─────────────────────────────────────────────
@@ -239,11 +246,7 @@ async function startApp() {
         
         sorted.forEach((p, idx) => {
           let med = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "🔹";
-          addRow(med, p.name, p.pseudo ? `Pseudo: ${p.pseudo}` : p.phone, null, null, false);
-          let cell = table.rows[table.rows.length-1].addText((p.score || 0) + " pts");
-          cell.rightAligned();
-          cell.titleColor = Color.orange();
-          cell.titleFont = Font.boldSystemFont(18);
+          addRow(med, p.name, p.pseudo ? `Pseudo: ${p.pseudo}` : p.phone, null, null, false, (p.score || 0) + " pts");
         });
       }
       
