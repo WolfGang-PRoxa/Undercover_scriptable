@@ -720,20 +720,4 @@ async function main() {
   }
 }
 
-// ─────────────────────────────────────────────
-await main();
-
-async function main() {
-  ensureStorage();
-  loadConfig();
-  appState.players = loadPlayers();
-  
-  while(true) {
-    let action = await startApp();
-    if (action === "quit") break;
-    if (action === "launch") await launchGame();
-    if (action === "eliminate") await handleElimination();
-  }
-}
-
 await main();
