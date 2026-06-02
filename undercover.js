@@ -635,21 +635,30 @@ async function processEndGame(winnerType, mrWhiteAssign = null) {
   let title = "🎉 FIN DE PARTIE";
   let msg = "";
   
+  const incrementWin = (phone, roleKey) => {
+    let pObj = appState.players.find(p => p.phone === phone);
+    if (pObj && pObj.roles && typeof pObj.roles[roleKey] === 'object') {
+      pObj.roles[roleKey].won++;
+    }
+  };
+  
   if (winnerType === "civils") {
     msg = "Les Civils ont gagné ! Tous les imposteurs sont éliminés.\n(+2 pts par Civil)";
-    appState.game.assignments.forEach(a => { if(a.role === "Civil") addScore(a.player.phone, 2); });
+    appState.game.assignments.forEach(a => { if(a.role === "Civil") { addScore(a.player.phone, 2); incrementWin(a.player.phone, "civil"); } });
   } 
   else if (winnerType === "infiltres") {
     msg = "Les Infiltrés et Mr. White ont survécu ! Il ne reste qu'un Civil.\n(+10 pts Undercover / +6 pts Mr.White)";
     appState.game.assignments.forEach(a => { 
-      if(a.role === "Infiltré") addScore(a.player.phone, 10);
-      if(a.role === "Mister White") addScore(a.player.phone, 6);
+      if(a.role === "Infiltré") { addScore(a.player.phone, 10); incrementWin(a.player.phone, "infiltre"); }
+      if(a.role === "Mister White") { addScore(a.player.phone, 6); incrementWin(a.player.phone, "mrwhite"); }
     });
   } 
   else if (winnerType === "mrwhite") {
     msg = "Mr. White a trouvé le mot et vole la victoire !\n(+6 pts pour lui)";
-    addScore(mrWhiteAssign.player.phone, 6);
+    addScore(mrWhiteAssign.player.phone, 6); incrementWin(mrWhiteAssign.player.phone, "mrwhite");
   }
+
+  savePlayers();
 
   let pair = appState.game.assignments.find(a => a.isPair).isPair;
   msg += `\n\n🔑 Mots secrets :\nCivil : ${pair.civil}\nUndercover : ${pair.undercover}`;
