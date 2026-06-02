@@ -32,7 +32,7 @@ fm.writeString(path, scriptCode);
 let alert = new Alert();
 alert.title = "Installation réussie 🎉";
 alert.message = "La dernière version de '" + scriptName + "' a été téléchargée et installée avec succès.";
-alert.addAction("Lancer le jeu 🚀");
+alert.addAction("Lancer le jeu");
 alert.addCancelAction("Fermer");
 let response = await alert.presentAlert();
 
