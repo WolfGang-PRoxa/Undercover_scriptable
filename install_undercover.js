@@ -30,7 +30,12 @@ let path = fm.joinPath(fm.documentsDirectory(), scriptName + ".js");
 fm.writeString(path, scriptCode);
 
 let alert = new Alert();
-alert.title = "Mise à jour réussie 🎉";
-alert.message = "La dernière version de '" + scriptName + "' a été téléchargée et installée avec succès. Vous pouvez maintenant fermer ceci et lancer 'Undercover' !";
-alert.addAction("OK");
-await alert.presentAlert();
+alert.title = "Installation réussie 🎉";
+alert.message = "La dernière version de '" + scriptName + "' a été téléchargée et installée avec succès.";
+alert.addAction("Lancer le jeu 🚀");
+alert.addCancelAction("Fermer");
+let response = await alert.presentAlert();
+
+if (response === 0) {
+  Safari.open("scriptable:///run?scriptName=" + encodeURIComponent(scriptName));
+}
