@@ -587,7 +587,7 @@ async function startApp() {
           });
         } else {
           let aliveCount = appState.game.alive.length;
-          addHeader(`🎙️ Manche ${appState.game.round}`, `Vivants : ${aliveCount} joueur(s)`);
+          addHeader(`Manche ${appState.game.round}`, `Vivants : ${aliveCount} joueur(s)`);
           
           addRow("⚙️", "Réglages en jeu", "Modifier les options", null, () => { appState.prevView = "playing"; appState.view = "advanced"; render(); });
           
