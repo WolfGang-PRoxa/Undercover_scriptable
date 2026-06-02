@@ -1,3 +1,6 @@
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: deep-purple; icon-glyph: cloud-download-alt;
 // Script d'installation et de mise à jour pour Undercover
 const scriptName = "Undercover";
 // URL brute vers le fichier sur votre dépôt GitHub (branche main)

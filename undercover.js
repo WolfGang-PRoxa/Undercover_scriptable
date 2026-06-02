@@ -1,3 +1,6 @@
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: deep-purple; icon-glyph: user-secret;
 // ============================================================
 //  UNDERCOVER — Script Scriptable complet (Façon Raccourcis)
 //  Version : 5.1 (Jeu Complet, Scores, Contacts Restaurés)
