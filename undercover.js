@@ -615,6 +615,7 @@ async function startApp() {
 
     render();
     await table.present(false);
+    resolve("quit");
   });
 }
 
