@@ -58,7 +58,10 @@ let appState = {
     alive: [], 
     turnOrder: [], 
     round: 1,
-    method: "screen" 
+    method: "screen",
+    status: "playing",
+    winnerType: null,
+    mrWhiteAssign: null
   }
 };
 
@@ -527,46 +530,83 @@ async function startApp() {
       // ─────────────────────────────────────────────
       // VUE : EN JEU (Manches, Ordre, Éliminations)
       else if (appState.view === "playing") {
-        let aliveCount = appState.game.alive.length;
-        addHeader(`🎙️ Manche ${appState.game.round}`, `Vivants : ${aliveCount} joueur(s)`);
-        
-        addRow("⚙️", "Réglages en jeu", "Modifier les options", null, () => { appState.prevView = "playing"; appState.view = "advanced"; render(); });
-        
-        addRow("🛑", "Quitter la partie", "Retour au menu", Color.red(), async () => {
-          let a = new Alert(); a.title = "Quitter la partie ?"; a.message = "La progression sera perdue."; a.addAction("Quitter"); a.addCancelAction("Annuler");
-          if (await a.presentAlert() === 0) { appState.view = "main"; render(); }
-        });
+        if (appState.game.status === "ended") {
+          addHeader(`🏁 Partie terminée`, "Les rôles sont révélés");
+          addRow("🏆", "Afficher le résumé de fin de partie", "Et retourner au menu", Color.orange(), async () => {
+             await showEndGameSummary();
+             appState.view = "main";
+             render();
+          });
 
-        let orderCell = new UITableRow();
-        orderCell.isHeader = true; orderCell.addText("Vivants (cliquez pour éliminer) :").titleFont = Font.boldSystemFont(18);
-        table.addRow(orderCell);
+          let cell = new UITableRow();
+          cell.isHeader = true; cell.addText("Joueurs :").titleFont = Font.boldSystemFont(18);
+          table.addRow(cell);
 
-        let aliveSet = new Set(appState.game.alive);
-
-        appState.game.turnOrder.forEach((phone, idx) => {
-          let assign = appState.game.assignments.find(a => a.player.phone === phone);
-          let name = assign.player.pseudo || assign.player.name;
-          addRow(`${idx + 1}.`, name, "Vivant", null, () => {
-            resolve({ action: "eliminate", phone: phone });
-          }, true);
-        });
-
-        let deadPlayers = appState.game.assignments.filter(a => !aliveSet.has(a.player.phone));
-        if (deadPlayers.length > 0) {
-          let deadCell = new UITableRow();
-          deadCell.isHeader = true; deadCell.addText("Éliminés :").titleFont = Font.boldSystemFont(18);
-          table.addRow(deadCell);
-
-          deadPlayers.forEach(assign => {
+          appState.game.assignments.forEach(assign => {
             let name = assign.player.pseudo || assign.player.name;
+            let isAlive = appState.game.alive.includes(assign.player.phone);
             let roleColor = assign.role === "Infiltré" ? Color.red() : assign.role === "Civil" ? Color.blue() : Color.dynamic(Color.darkGray(), Color.white());
+            let icon = isAlive ? "🙂" : "💀";
             let row = new UITableRow();
             row.height = 55;
-            let cell = row.addText("💀 " + name, `est éliminé(e) (${assign.role} ${assign.emoji})`);
-            cell.titleColor = Color.gray();
-            cell.subtitleColor = roleColor;
+            let c = row.addText(`${icon} ${name}`, `${assign.role} ${assign.emoji} - Mot: ${assign.word || "Aucun"}`);
+            if (!isAlive) {
+               c.titleColor = Color.gray();
+               c.subtitleColor = Color.gray();
+            } else {
+               c.subtitleColor = roleColor;
+            }
             table.addRow(row);
           });
+        } else {
+          let aliveCount = appState.game.alive.length;
+          addHeader(`🎙️ Manche ${appState.game.round}`, `Vivants : ${aliveCount} joueur(s)`);
+          
+          addRow("⚙️", "Réglages en jeu", "Modifier les options", null, () => { appState.prevView = "playing"; appState.view = "advanced"; render(); });
+          
+          addRow("🛑", "Quitter la partie", "Retour au menu", Color.red(), async () => {
+            let a = new Alert(); a.title = "Quitter la partie ?"; a.message = "La progression sera perdue."; a.addAction("Quitter"); a.addCancelAction("Annuler");
+            if (await a.presentAlert() === 0) { appState.view = "main"; render(); }
+          });
+
+          let orderCell = new UITableRow();
+          orderCell.isHeader = true; orderCell.addText("Vivants (cliquez pour éliminer) :").titleFont = Font.boldSystemFont(18);
+          table.addRow(orderCell);
+
+          let aliveSet = new Set(appState.game.alive);
+
+          appState.game.turnOrder.forEach((phone, idx) => {
+            let assign = appState.game.assignments.find(a => a.player.phone === phone);
+            let name = assign.player.pseudo || assign.player.name;
+            addRow(`${idx + 1}.`, name, "Vivant", null, async () => {
+              let a = new Alert();
+              a.title = `Éliminer ${name} ?`;
+              a.addAction("Éliminer");
+              a.addCancelAction("Annuler");
+              if (await a.presentAlert() === 0) {
+                await executeElimination(phone);
+                render();
+              }
+            }, false);
+          });
+
+          let deadPlayers = appState.game.assignments.filter(a => !aliveSet.has(a.player.phone));
+          if (deadPlayers.length > 0) {
+            let deadCell = new UITableRow();
+            deadCell.isHeader = true; deadCell.addText("Éliminés :").titleFont = Font.boldSystemFont(18);
+            table.addRow(deadCell);
+
+            deadPlayers.forEach(assign => {
+              let name = assign.player.pseudo || assign.player.name;
+              let roleColor = assign.role === "Infiltré" ? Color.red() : assign.role === "Civil" ? Color.blue() : Color.dynamic(Color.darkGray(), Color.white());
+              let row = new UITableRow();
+              row.height = 55;
+              let cell = row.addText("💀 " + name, `est éliminé(e) (${assign.role} ${assign.emoji})`);
+              cell.titleColor = Color.gray();
+              cell.subtitleColor = roleColor;
+              table.addRow(row);
+            });
+          }
         }
       }
 
@@ -591,6 +631,9 @@ async function launchGame() {
   appState.game.alive = selectedPlayers.map(p => p.phone);
   appState.game.round = 1;
   appState.game.turnOrder = shuffle(appState.game.alive);
+  appState.game.status = "playing";
+  appState.game.winnerType = null;
+  appState.game.mrWhiteAssign = null;
   
   if (DEBUG_MODE) {
     let lines = appState.game.assignments.map(a => `${a.emoji} ${a.player.name} → ${a.role} [${a.word || "—"}]`);
@@ -638,17 +681,9 @@ function assignRoles(players, nbInfil, nbMW) {
 // GESTION DES ÉLIMINATIONS
 // ─────────────────────────────────────────────
 
-async function handleElimination(killedPhone) {
+async function executeElimination(killedPhone) {
   let killed = appState.game.assignments.find(x => x.player.phone === killedPhone);
-  if (!killed) { appState.view = "playing"; return; }
-  
-  let a = new Alert();
-  a.title = `Éliminer ${killed.player.pseudo || killed.player.name} ?`;
-  a.addAction("Éliminer");
-  a.addCancelAction("Annuler");
-  
-  let res = await a.presentAlert();
-  if (res === -1) { appState.view = "playing"; return; }
+  if (!killed) return;
   
   appState.game.alive = appState.game.alive.filter(phone => phone !== killed.player.phone);
   
@@ -659,7 +694,7 @@ async function handleElimination(killedPhone) {
     mwAlert.addAction("Oui (Victoire Mr. White)");
     mwAlert.addAction("Non (Il meurt)");
     if (await mwAlert.presentAlert() === 0) {
-      await processEndGame("mrwhite", killed);
+      computeEndGameStats("mrwhite", killed);
       return;
     }
   }
@@ -673,10 +708,10 @@ async function handleElimination(killedPhone) {
   });
 
   if (iCount === 0 && mwCount === 0) {
-    await processEndGame("civils");
+    computeEndGameStats("civils");
     return;
   } else if (cCount <= 1 && (iCount > 0 || mwCount > 0)) {
-    await processEndGame("infiltres");
+    computeEndGameStats("infiltres");
     return;
   }
 
@@ -684,7 +719,6 @@ async function handleElimination(killedPhone) {
   appState.game.turnOrder = shuffle(appState.game.alive);
   
   if (!DEBUG_MODE) await notifyElimination(killed);
-  appState.view = "playing";
 }
 
 async function notifyElimination(killed) {
@@ -714,10 +748,11 @@ async function notifyElimination(killed) {
   }
 }
 
-async function processEndGame(winnerType, mrWhiteAssign = null) {
-  let title = "🎉 FIN DE PARTIE";
-  let msg = "";
-  
+function computeEndGameStats(winnerType, mrWhiteAssign = null) {
+  appState.game.status = "ended";
+  appState.game.winnerType = winnerType;
+  appState.game.mrWhiteAssign = mrWhiteAssign;
+
   const updateStats = (phone, roleKey, isWin) => {
     let pObj = appState.players.find(p => p.phone === phone);
     if (pObj && pObj.roles) {
@@ -733,36 +768,48 @@ async function processEndGame(winnerType, mrWhiteAssign = null) {
     let isWin = false;
     if (winnerType === "civils" && a.role === "Civil") isWin = true;
     else if (winnerType === "infiltres" && (a.role === "Infiltré" || a.role === "Mister White")) isWin = true;
-    else if (winnerType === "mrwhite" && a.role === "Mister White" && a.player.phone === mrWhiteAssign.player.phone) isWin = true;
+    else if (winnerType === "mrwhite" && a.role === "Mister White" && a.player.phone === (mrWhiteAssign ? mrWhiteAssign.player.phone : null)) isWin = true;
     
     updateStats(a.player.phone, roleKey, isWin);
   });
   
   if (winnerType === "civils") {
-    msg = "Les Civils ont gagné ! Tous les imposteurs sont éliminés.\n(+2 pts par Civil)";
     appState.game.assignments.forEach(a => { if(a.role === "Civil") { addScore(a.player.phone, 2); } });
   } 
   else if (winnerType === "infiltres") {
-    msg = "Les Infiltrés et Mr. White ont survécu ! Il ne reste qu'un Civil.\n(+10 pts Undercover / +6 pts Mr.White)";
     appState.game.assignments.forEach(a => { 
       if(a.role === "Infiltré") { addScore(a.player.phone, 10); }
       if(a.role === "Mister White") { addScore(a.player.phone, 6); }
     });
   } 
   else if (winnerType === "mrwhite") {
-    msg = "Mr. White a trouvé le mot et vole la victoire !\n(+6 pts pour lui)";
-    addScore(mrWhiteAssign.player.phone, 6);
+    addScore(mrWhiteAssign ? mrWhiteAssign.player.phone : null, 6);
   }
 
   savePlayers();
+}
+
+async function showEndGameSummary() {
+  let title = "🎉 FIN DE PARTIE";
+  let msg = "";
+  let winnerType = appState.game.winnerType;
+  let mrWhiteAssign = appState.game.mrWhiteAssign;
+
+  if (winnerType === "civils") {
+    msg = "Les Civils ont gagné ! Tous les imposteurs sont éliminés.\n(+2 pts par Civil)";
+  } 
+  else if (winnerType === "infiltres") {
+    msg = "Les Infiltrés et Mr. White ont survécu ! Il ne reste qu'un Civil.\n(+10 pts Undercover / +6 pts Mr.White)";
+  } 
+  else if (winnerType === "mrwhite") {
+    msg = "Mr. White a trouvé le mot et vole la victoire !\n(+6 pts pour lui)";
+  }
 
   let pair = appState.game.assignments.find(a => a.isPair).isPair;
   msg += `\n\n🔑 Mots secrets :\nCivil : ${pair.civil}\nUndercover : ${pair.undercover}`;
 
   let a = new Alert(); a.title = title; a.message = msg; a.addAction("Retour au menu");
   await a.presentAlert();
-  
-  appState.view = "main";
 }
 
 // ─────────────────────────────────────────────
@@ -812,7 +859,6 @@ async function main() {
     let action = await startApp();
     if (action === "quit") break;
     if (action === "launch") await launchGame();
-    if (action && typeof action === "object" && action.action === "eliminate") await handleElimination(action.phone);
   }
 }
 
