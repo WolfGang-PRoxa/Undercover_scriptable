@@ -17,6 +17,7 @@ let DEBUG_MODE = false;
 const FOLDER_NAME   = "Undercover";
 const LISTS_FOLDER  = "lists";
 const FILE_PLAYERS  = "players.json";
+const FILE_CONFIG   = "config.json";
 
 const BUILTIN_PAIRS = [
   { civil: "Chat",        undercover: "Tigre" },
@@ -68,6 +69,7 @@ function getFM() { try { return FileManager.iCloud(); } catch (e) { return FileM
 function rootPath() { return getFM().joinPath(getFM().documentsDirectory(), FOLDER_NAME); }
 function listsPath() { return getFM().joinPath(rootPath(), LISTS_FOLDER); }
 function playersPath() { return getFM().joinPath(rootPath(), FILE_PLAYERS); }
+function configPath() { return getFM().joinPath(rootPath(), FILE_CONFIG); }
 function usedWordsPath(listName) { return getFM().joinPath(listsPath(), listName + "__used_words.json"); }
 
 function ensureStorage() {
@@ -75,9 +77,22 @@ function ensureStorage() {
   if (!fm.fileExists(rootPath())) fm.createDirectory(rootPath(), true);
   if (!fm.fileExists(listsPath())) fm.createDirectory(listsPath(), true);
   if (!fm.fileExists(playersPath())) writeJSON(playersPath(), []);
+  if (!fm.fileExists(configPath())) saveConfig();
 }
 
 function writeJSON(path, data) { getFM().writeString(path, JSON.stringify(data, null, 2)); }
+
+function saveConfig() { writeJSON(configPath(), { DEBUG_MODE, sessionConfig }); }
+
+function loadConfig() {
+  const fm = getFM(), path = configPath();
+  try {
+    if (fm.isFileStoredIniCloud && fm.isFileStoredIniCloud(path)) fm.downloadFileFromiCloud(path);
+    const data = JSON.parse(fm.readString(path));
+    if (data.DEBUG_MODE !== undefined) DEBUG_MODE = data.DEBUG_MODE;
+    if (data.sessionConfig) sessionConfig = { ...sessionConfig, ...data.sessionConfig };
+  } catch (e) {}
+}
 
 function loadPlayers() {
   const fm = getFM(), path = playersPath();
@@ -231,7 +246,7 @@ async function startApp() {
         addRow("🏆", "Classement & Scores", "Statistiques des joueurs", Color.orange(), () => { appState.view = "stats"; render(); });
         addRow("⚙️", "Configuration avancée", "Mots, affichage...", null, () => { appState.prevView = "main"; appState.view = "advanced"; render(); });
         
-        addRow("🐛", "Mode Debug", DEBUG_MODE ? "🟢 ON (Test)" : "⚪ OFF", DEBUG_MODE ? Color.orange() : Color.gray(), () => { DEBUG_MODE = !DEBUG_MODE; render(); });
+        addRow("🐛", "Mode Debug", DEBUG_MODE ? "🟢 ON (Test)" : "⚪ OFF", DEBUG_MODE ? Color.orange() : Color.gray(), () => { DEBUG_MODE = !DEBUG_MODE; saveConfig(); render(); });
         addRow("❌", "Quitter", "", Color.red(), () => resolve("quit"), true);
       }
 
@@ -396,8 +411,8 @@ async function startApp() {
         addRow("◀", "Retour", "", Color.blue(), () => { appState.view = appState.prevView; render(); });
         
         addRow("📚", "Changer de liste de mots", `Active : ${sessionConfig.activeListName || "⭐ Embarquée"}`, null, async () => { appState.view = "lists"; render(); });
-        addRow("🏷️", "Inclure rôle dans le SMS", sessionConfig.showRoleInMessage ? "🟢 ON" : "⚪ OFF", null, () => { sessionConfig.showRoleInMessage = !sessionConfig.showRoleInMessage; render(); });
-        addRow("👤", "Inclure pseudo dans le SMS", sessionConfig.showPseudoInMessage ? "🟢 ON" : "⚪ OFF", null, () => { sessionConfig.showPseudoInMessage = !sessionConfig.showPseudoInMessage; render(); });
+        addRow("🏷️", "Inclure rôle dans le SMS", sessionConfig.showRoleInMessage ? "🟢 ON" : "⚪ OFF", null, () => { sessionConfig.showRoleInMessage = !sessionConfig.showRoleInMessage; saveConfig(); render(); });
+        addRow("👤", "Inclure pseudo dans le SMS", sessionConfig.showPseudoInMessage ? "🟢 ON" : "⚪ OFF", null, () => { sessionConfig.showPseudoInMessage = !sessionConfig.showPseudoInMessage; saveConfig(); render(); });
       }
 
       // ─────────────────────────────────────────────
@@ -407,12 +422,12 @@ async function startApp() {
         addRow("◀", "Retour", "", Color.blue(), () => { appState.view = "advanced"; render(); });
         
         addRow("⭐", "Liste Embarquée", "Incluse dans le script", sessionConfig.activeListName === null ? Color.green() : null, () => {
-          sessionConfig.activeListName = null; appState.view = "advanced"; render();
+          sessionConfig.activeListName = null; saveConfig(); appState.view = "advanced"; render();
         });
         
         getAvailableLists().forEach(list => {
            addRow("📄", list, "", sessionConfig.activeListName === list ? Color.green() : null, () => {
-             sessionConfig.activeListName = list; appState.view = "advanced"; render();
+             sessionConfig.activeListName = list; saveConfig(); appState.view = "advanced"; render();
            });
         });
       }
@@ -654,6 +669,7 @@ async function showOnScreen() {
 
 async function main() {
   ensureStorage();
+  loadConfig();
   appState.players = loadPlayers();
   
   while(true) {
