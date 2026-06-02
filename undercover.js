@@ -3,7 +3,7 @@
 // icon-color: deep-purple; icon-glyph: user-secret;
 // ============================================================
 //  UNDERCOVER — Script Scriptable complet (Façon Raccourcis)
-//  Version : 5.1 (Jeu Complet, Scores, Contacts Restaurés)
+//  Version : 1.0 (Jeu Complet, Scores, Contacts Restaurés)
 //  Fonctionnalités : Déroulement de partie, conditions de 
 //  victoire, SMS d'élimination, classement des joueurs.
 // ============================================================
@@ -260,10 +260,37 @@ async function startApp() {
         addRow("🎮", "Lancer une partie", "Configurer et démarrer", Color.blue(), () => { appState.view = "config"; render(); });
         addRow("👥", "Gérer les joueurs", `${appState.players.length} enregistré(s)`, null, () => { appState.view = "players"; render(); });
         addRow("🏆", "Classement & Scores", "Statistiques des joueurs", Color.orange(), () => { appState.view = "stats"; render(); });
+        addRow("📖", "Règles du jeu", "Fonctionnement de la partie", null, () => { appState.view = "rules"; render(); });
         addRow("⚙️", "Configuration avancée", "Mots, affichage...", null, () => { appState.prevView = "main"; appState.view = "advanced"; render(); });
         
         addRow("🐛", "Mode Debug", DEBUG_MODE ? "🟢 ON (Test)" : "⚪ OFF", DEBUG_MODE ? Color.orange() : Color.gray(), () => { DEBUG_MODE = !DEBUG_MODE; saveConfig(); render(); });
         addRow("❌", "Quitter", "", Color.red(), () => resolve("quit"), true);
+      }
+
+      // ─────────────────────────────────────────────
+      // VUE : RÈGLES DU JEU
+      else if (appState.view === "rules") {
+        addHeader("Règles du jeu", "Fonctionnement et victoire");
+        addRow("◀", "Retour", "", Color.blue(), () => { appState.view = "main"; render(); });
+
+        const addSection = (title, text) => {
+          let rTitle = new UITableRow();
+          rTitle.isHeader = true;
+          let tCell = rTitle.addText(title);
+          tCell.titleFont = Font.boldSystemFont(18);
+          table.addRow(rTitle);
+
+          let rText = new UITableRow();
+          let cText = rText.addText(text);
+          cText.titleFont = Font.systemFont(15);
+          cText.titleColor = Color.dynamic(Color.darkGray(), Color.lightGray());
+          table.addRow(rText);
+        };
+
+        addSection("But du jeu", "Chaque joueur reçoit un rôle secret. Les Civils reçoivent tous le même mot. Les Infiltrés reçoivent un mot similaire mais légèrement différent. Mister White ne reçoit aucun mot.\nLe but des Civils est de démasquer les intrus. Le but des imposteurs est de survivre.");
+        addSection("Déroulement d'un tour", "1. À tour de rôle, chaque joueur énonce un mot en rapport avec son mot secret.\n2. Une fois que tous les joueurs ont parlé, un débat commence pour identifier l'intrus.\n3. À l'issue du débat, le groupe vote et élimine un participant. Son rôle est alors révélé.");
+        addSection("Rôles et Stratégie", "Civil : Trouvez les intrus sans utiliser des indices trop évidents qui aideraient Mister White.\nInfiltré : Fondez-vous dans la masse en déduisant le thème général du mot des Civils.\nMister White : Vous n'avez aucun mot. Observez, bluffez et tentez de découvrir le mot des Civils.");
+        addSection("Conditions de Victoire", "Civils : Ils éliminent tous les Infiltrés et Mister White.\nInfiltrés : Ils survivent jusqu'à ce qu'il ne reste qu'un seul Civil.\nMister White : Il survit jusqu'à la fin, OU il est éliminé mais parvient à deviner le mot exact des Civils.");
       }
 
       // ─────────────────────────────────────────────
