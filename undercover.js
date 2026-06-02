@@ -261,7 +261,38 @@ async function startApp() {
         
         sorted.forEach((p, idx) => {
           let med = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "🔹";
-          addRow(med, p.name, p.pseudo ? `Pseudo: ${p.pseudo}` : p.phone, null, null, false, (p.score || 0) + " pts");
+          let pRoles = p.roles || { civil: 0, infiltre: 0, mrwhite: 0 };
+          let rolesStr = ` 🤠 ${pRoles.civil} | 🕵️ ${pRoles.infiltre} | 👻 ${pRoles.mrwhite}`;
+          let sub = (p.pseudo ? `Pseudo: ${p.pseudo}` : p.phone) + rolesStr;
+          
+          addRow(med, p.name, sub, null, async () => {
+            let a = new Alert();
+            a.title = `Gérer ${p.name}`;
+            a.message = `Score : ${p.score || 0}\nCivils: ${pRoles.civil} | Infiltrés: ${pRoles.infiltre} | Mr. White: ${pRoles.mrwhite}`;
+            a.addAction("Modifier le score");
+            a.addDestructiveAction("Réinitialiser le score");
+            a.addCancelAction("Annuler");
+            let res = await a.presentAlert();
+            
+            if (res === 0) {
+              let aScore = new Alert();
+              aScore.title = "Nouveau score";
+              aScore.addTextField("Ex: 10", String(p.score || 0));
+              aScore.addAction("Enregistrer");
+              aScore.addCancelAction("Annuler");
+              
+              if (await aScore.presentAlert() === 0) {
+                let val = parseInt(aScore.textFieldValue(0));
+                if (!isNaN(val)) {
+                  let pIdx = appState.players.findIndex(x => x.phone === p.phone);
+                  if (pIdx >= 0) { appState.players[pIdx].score = val; savePlayers(); render(); }
+                }
+              }
+            } else if (res === 1) {
+              let pIdx = appState.players.findIndex(x => x.phone === p.phone);
+              if (pIdx >= 0) { appState.players[pIdx].score = 0; savePlayers(); render(); }
+            }
+          }, false, (p.score || 0) + " pts");
         });
       }
       
@@ -279,7 +310,7 @@ async function startApp() {
             let n = a.textFieldValue(0).trim();
             let p = normalizePhone(a.textFieldValue(1).trim());
             if (n && isValidPhone(p)) {
-              if (!appState.players.some(x => x.phone === p)) { appState.players.push({name: n, phone: p, score: 0}); savePlayers(); render(); }
+              if (!appState.players.some(x => x.phone === p)) { appState.players.push({name: n, phone: p, score: 0, roles: { civil: 0, infiltre: 0, mrwhite: 0 }}); savePlayers(); render(); }
             }
           }
         });
@@ -666,6 +697,22 @@ async function showOnScreen() {
 // ─────────────────────────────────────────────
 //  BOUCLE PRINCIPALE
 // ─────────────────────────────────────────────
+
+async function main() {
+  ensureStorage();
+  loadConfig();
+  appState.players = loadPlayers();
+  
+  while(true) {
+    let action = await startApp();
+    if (action === "quit") break;
+    if (action === "launch") await launchGame();
+    if (action === "eliminate") await handleElimination();
+  }
+}
+
+// ─────────────────────────────────────────────
+await main();
 
 async function main() {
   ensureStorage();
