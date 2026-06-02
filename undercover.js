@@ -49,6 +49,7 @@ let appState = {
   players: [],
   contacts: null,
   contactQuery: "",
+  selectedPlayerPhone: null,
   game: {
     selected: new Set(),
     nbInfil: -1,
@@ -277,76 +278,82 @@ async function startApp() {
           let rolesStr = ` 🤠 ${pRoles.civil.played} | 🕵️ ${pRoles.infiltre.played} | 👻 ${pRoles.mrwhite.played}`;
           let sub = (p.pseudo ? `Pseudo: ${p.pseudo}` : p.phone) + rolesStr;
           
-          addRow(med, p.name, sub, null, async () => {
-            let a = new Alert();
-            a.title = `Gérer ${p.name}`;
-            a.message = `Score : ${p.score || 0}\nCivils: ${pRoles.civil.won}V ${pRoles.civil.lost}D | Infiltrés: ${pRoles.infiltre.won}V ${pRoles.infiltre.lost}D | Mr. White: ${pRoles.mrwhite.won}V ${pRoles.mrwhite.lost}D`;
-            a.addAction("Modifier le score");
-            a.addAction("Gérer les stats de rôles");
-            a.addDestructiveAction("Réinitialiser le score");
-            a.addCancelAction("Annuler");
-            let res = await a.presentAlert();
-            
-            if (res === 0) {
-              let aScore = new Alert();
-              aScore.title = "Nouveau score";
-              aScore.addTextField("Ex: 10", String(p.score || 0));
-              aScore.addAction("Enregistrer");
-              aScore.addCancelAction("Annuler");
-              
-              if (await aScore.presentAlert() === 0) {
-                let val = parseInt(aScore.textFieldValue(0));
-                if (!isNaN(val)) {
-                  let pIdx = appState.players.findIndex(x => x.phone === p.phone);
-                  if (pIdx >= 0) { appState.players[pIdx].score = val; savePlayers(); render(); }
-                }
-              }
-            } else if (res === 1) {
-              let aStats = new Alert();
-              aStats.title = "Gérer les stats";
-              aStats.message = "Modifiez les parties jouées/gagnées/perdues.";
-              aStats.addAction("🤠 Civils");
-              aStats.addAction("🕵️ Infiltrés");
-              aStats.addAction("👻 Mister White");
-              aStats.addDestructiveAction("Tout réinitialiser (stats)");
-              aStats.addCancelAction("Annuler");
-              let resStats = await aStats.presentAlert();
-              
-              if (resStats >= 0 && resStats <= 2) {
-                let roleKey = resStats === 0 ? "civil" : resStats === 1 ? "infiltre" : "mrwhite";
-                let roleName = resStats === 0 ? "Civils" : resStats === 1 ? "Infiltrés" : "Mister White";
-                let aEdit = new Alert();
-                aEdit.title = `Stats : ${roleName}`;
-                aEdit.addTextField("Jouées", String(pRoles[roleKey].played));
-                aEdit.addTextField("Gagnées", String(pRoles[roleKey].won));
-                aEdit.addTextField("Perdues", String(pRoles[roleKey].lost));
-                aEdit.addAction("Enregistrer");
-                aEdit.addCancelAction("Annuler");
-                if (await aEdit.presentAlert() === 0) {
-                  let pIdx = appState.players.findIndex(x => x.phone === p.phone);
-                  if (pIdx >= 0) { 
-                    appState.players[pIdx].roles[roleKey].played = parseInt(aEdit.textFieldValue(0)) || 0;
-                    appState.players[pIdx].roles[roleKey].won = parseInt(aEdit.textFieldValue(1)) || 0;
-                    appState.players[pIdx].roles[roleKey].lost = parseInt(aEdit.textFieldValue(2)) || 0;
-                    savePlayers(); render(); 
-                  }
-                }
-              } else if (resStats === 3) {
-                  let pIdx = appState.players.findIndex(x => x.phone === p.phone);
-                  if (pIdx >= 0) { 
-                    appState.players[pIdx].roles = { 
-                      civil: {played:0, won:0, lost:0}, 
-                      infiltre: {played:0, won:0, lost:0}, 
-                      mrwhite: {played:0, won:0, lost:0} 
-                    };
-                    savePlayers(); render(); 
-                  }
-              }
-            } else if (res === 2) {
-              let pIdx = appState.players.findIndex(x => x.phone === p.phone);
-              if (pIdx >= 0) { appState.players[pIdx].score = 0; savePlayers(); render(); }
-            }
+          addRow(med, p.name, sub, null, () => {
+            appState.selectedPlayerPhone = p.phone;
+            appState.view = "player_stats";
+            render();
           }, false, (p.score || 0) + " pts");
+        });
+      }
+
+      // ─────────────────────────────────────────────
+      // VUE : STATISTIQUES DU JOUEUR
+      else if (appState.view === "player_stats") {
+        let p = appState.players.find(x => x.phone === appState.selectedPlayerPhone);
+        if (!p) { appState.view = "stats"; render(); return; }
+        
+        let pRoles = p.roles || { civil: {played:0, won:0, lost:0}, infiltre: {played:0, won:0, lost:0}, mrwhite: {played:0, won:0, lost:0} };
+
+        addHeader(`Gérer ${p.name}`, `Score global : ${p.score || 0}`);
+        addRow("◀", "Retour au classement", "", Color.blue(), () => { appState.view = "stats"; render(); });
+
+        addRow("✏️", "Modifier le score global", "", null, async () => {
+          let aScore = new Alert();
+          aScore.title = "Nouveau score";
+          aScore.addTextField("Ex: 10", String(p.score || 0));
+          aScore.addAction("Enregistrer");
+          aScore.addCancelAction("Annuler");
+          if (await aScore.presentAlert() === 0) {
+            let val = parseInt(aScore.textFieldValue(0));
+            if (!isNaN(val)) { p.score = val; savePlayers(); render(); }
+          }
+        });
+
+        let statsHeader = new UITableRow();
+        statsHeader.isHeader = true; statsHeader.height = 40;
+        let shCell = statsHeader.addText("Statistiques par rôle");
+        shCell.titleFont = Font.boldSystemFont(20);
+        table.addRow(statsHeader);
+
+        const addRoleStatRow = (icon, roleName, roleKey) => {
+           let rStats = pRoles[roleKey];
+           let subtitle = `${rStats.played} jouée(s) | ${rStats.won}V - ${rStats.lost}D`;
+           addRow(icon, roleName, subtitle, null, async () => {
+             let aEdit = new Alert();
+             aEdit.title = `Stats : ${roleName}`;
+             aEdit.addTextField("Jouées", String(rStats.played));
+             aEdit.addTextField("Gagnées", String(rStats.won));
+             aEdit.addTextField("Perdues", String(rStats.lost));
+             aEdit.addAction("Enregistrer");
+             aEdit.addCancelAction("Annuler");
+             if (await aEdit.presentAlert() === 0) {
+               rStats.played = parseInt(aEdit.textFieldValue(0)) || 0;
+               rStats.won = parseInt(aEdit.textFieldValue(1)) || 0;
+               rStats.lost = parseInt(aEdit.textFieldValue(2)) || 0;
+               savePlayers(); render(); 
+             }
+           });
+        };
+
+        addRoleStatRow("🤠", "Civils", "civil");
+        addRoleStatRow("🕵️", "Infiltrés", "infiltre");
+        addRoleStatRow("👻", "Mister White", "mrwhite");
+
+        addRow("🗑️", "Tout réinitialiser", "Remet à 0 le score et les stats", Color.red(), async () => {
+             let a = new Alert();
+             a.title = "Réinitialiser " + p.name;
+             a.message = "Voulez-vous réinitialiser le score et les statistiques de rôles ?";
+             a.addDestructiveAction("Réinitialiser");
+             a.addCancelAction("Annuler");
+             if (await a.presentAlert() === 0) {
+                p.score = 0;
+                p.roles = { 
+                  civil: {played:0, won:0, lost:0}, 
+                  infiltre: {played:0, won:0, lost:0}, 
+                  mrwhite: {played:0, won:0, lost:0} 
+                };
+                savePlayers(); render();
+             }
         });
       }
       
