@@ -532,19 +532,42 @@ async function startApp() {
         
         addRow("⚙️", "Réglages en jeu", "Modifier les options", null, () => { appState.prevView = "playing"; appState.view = "advanced"; render(); });
         
-        addRow("💀", "ÉLIMINER UN JOUEUR", "Fin de manche", Color.red(), async () => {
-          resolve("eliminate");
-        }, true);
+        addRow("🛑", "Quitter la partie", "Retour au menu", Color.red(), async () => {
+          let a = new Alert(); a.title = "Quitter la partie ?"; a.message = "La progression sera perdue."; a.addAction("Quitter"); a.addCancelAction("Annuler");
+          if (await a.presentAlert() === 0) { appState.view = "main"; render(); }
+        });
 
         let orderCell = new UITableRow();
-        orderCell.isHeader = true; orderCell.addText("Ordre de parole :").titleFont = Font.boldSystemFont(18);
+        orderCell.isHeader = true; orderCell.addText("Vivants (cliquez pour éliminer) :").titleFont = Font.boldSystemFont(18);
         table.addRow(orderCell);
+
+        let aliveSet = new Set(appState.game.alive);
 
         appState.game.turnOrder.forEach((phone, idx) => {
           let assign = appState.game.assignments.find(a => a.player.phone === phone);
           let name = assign.player.pseudo || assign.player.name;
-          addRow(`${idx + 1}.`, name, "", null, null, false);
+          addRow(`${idx + 1}.`, name, "Vivant", null, () => {
+            resolve({ action: "eliminate", phone: phone });
+          }, true);
         });
+
+        let deadPlayers = appState.game.assignments.filter(a => !aliveSet.has(a.player.phone));
+        if (deadPlayers.length > 0) {
+          let deadCell = new UITableRow();
+          deadCell.isHeader = true; deadCell.addText("Éliminés :").titleFont = Font.boldSystemFont(18);
+          table.addRow(deadCell);
+
+          deadPlayers.forEach(assign => {
+            let name = assign.player.pseudo || assign.player.name;
+            let roleColor = assign.role === "Infiltré" ? Color.red() : assign.role === "Civil" ? Color.blue() : Color.dynamic(Color.darkGray(), Color.white());
+            let row = new UITableRow();
+            row.height = 55;
+            let cell = row.addText("💀 " + name, `est éliminé(e) (${assign.role} ${assign.emoji})`);
+            cell.titleColor = Color.gray();
+            cell.subtitleColor = roleColor;
+            table.addRow(row);
+          });
+        }
       }
 
       table.reload();
@@ -615,18 +638,17 @@ function assignRoles(players, nbInfil, nbMW) {
 // GESTION DES ÉLIMINATIONS
 // ─────────────────────────────────────────────
 
-async function handleElimination() {
-  let a = new Alert();
-  a.title = "💀 Qui est éliminé ?";
+async function handleElimination(killedPhone) {
+  let killed = appState.game.assignments.find(x => x.player.phone === killedPhone);
+  if (!killed) { appState.view = "playing"; return; }
   
-  let aliveAssigns = appState.game.alive.map(phone => appState.game.assignments.find(x => x.player.phone === phone));
-  aliveAssigns.forEach(assign => a.addAction(assign.player.pseudo || assign.player.name));
+  let a = new Alert();
+  a.title = `Éliminer ${killed.player.pseudo || killed.player.name} ?`;
+  a.addAction("Éliminer");
   a.addCancelAction("Annuler");
   
   let res = await a.presentAlert();
   if (res === -1) { appState.view = "playing"; return; }
-  
-  let killed = aliveAssigns[res];
   
   appState.game.alive = appState.game.alive.filter(phone => phone !== killed.player.phone);
   
@@ -790,7 +812,7 @@ async function main() {
     let action = await startApp();
     if (action === "quit") break;
     if (action === "launch") await launchGame();
-    if (action === "eliminate") await handleElimination();
+    if (action && typeof action === "object" && action.action === "eliminate") await handleElimination(action.phone);
   }
 }
 
