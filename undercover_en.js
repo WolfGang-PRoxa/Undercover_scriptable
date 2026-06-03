@@ -20,6 +20,7 @@ const FOLDER_NAME   = "Undercover";
 const LISTS_FOLDER  = "lists";
 const FILE_PLAYERS  = "players.json";
 const FILE_CONFIG   = "config.json";
+const APP_VERSION   = "1.0";
 
 let sessionConfig = {
   showRoleInMessage: false,
