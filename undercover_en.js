@@ -531,7 +531,7 @@ async function startApp() {
           appState.prevView = "config"; appState.view = "advanced"; render();
         });
 
-        addRow("", "START GAME", isValid ? "Click to start" : "Select at least 3 players", isValid ? Color.blue() : Color.gray(), () => {
+        addRow("🚀", "START GAME", isValid ? "Click to start" : "Select at least 3 players", isValid ? Color.blue() : Color.gray(), () => {
           if (isValid) resolve("launch");
         }, isValid);
 

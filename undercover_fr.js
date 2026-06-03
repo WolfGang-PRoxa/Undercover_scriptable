@@ -523,7 +523,7 @@ async function startApp() {
           appState.prevView = "config"; appState.view = "advanced"; render();
         });
 
-        addRow("", "LANCER LA PARTIE", isValid ? "Cliquez pour démarrer" : "Sélectionnez 3 joueurs min.", isValid ? Color.blue() : Color.gray(), () => {
+        addRow("🚀", "LANCER LA PARTIE", isValid ? "Cliquez pour démarrer" : "Sélectionnez 3 joueurs min.", isValid ? Color.blue() : Color.gray(), () => {
           if (isValid) resolve("launch");
         }, isValid);
 
