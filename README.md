@@ -19,7 +19,7 @@ The `startApp()` function creates the interface and returns a `Promise` that rem
 
 #### 1.2. Render Engine (`render()`)
 
-The `render()` function completely clears the table (`table.removeAllRows()`) and rebuilds the interface based on the value of `appState.view`. This approach allows for smooth transitions between different "pages" (Main Menu, Leaderboard, Game in Progress, Rules, etc.).
+The `render()` function completely clears the table (`table.removeAllRows()`) and rebuilds the interface based on the value of `appState.view`. This approach allows for smooth transitions between different "pages" (Main Menu, Leaderboard, Game in Progress, Rules, etc.). The main menu also dynamically displays the current script version (e.g., `Scriptable Edition - v1.0`).
 
 ### 2. State Management (`appState` & `sessionConfig`)
 
@@ -164,4 +164,4 @@ Le script permet l'import de listes JSON. Celles-ci doivent être déposées dan
   [ "Chien", "Chat", "Loup", "Renard" ]
 ]
 ```
-L'interface de "Configuration avancée" permet alors de sélectionner ces listes à la volée sans toucher au code source. Note : l'ancien format par paire (`[{ "civil": "...", "undercover": "..." }]`) est toujours pris en charge par rétrocompatibilité.
+L'interface de "Configuration avancée" permet alors de sélectionner ces listes à la volée sans toucher au code source. Note : l'ancien format par paire (`[{ "civil": "...", "undercover": "..." }]`) est toujours pris en charge par rétrocompatibilité.patibilité.

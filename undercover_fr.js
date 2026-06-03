@@ -3,7 +3,9 @@
 // icon-color: deep-purple; icon-glyph: user-secret;
 // ============================================================
 //  UNDERCOVER — Script Scriptable complet (Façon Raccourcis)
-//  Version : 1.0 (Jeu Complet, Scores, Contacts Restaurés)
+//  Version : 1.0
+//  Auteur : ~WolfGang_PRoxa~
+//  Description : Un script pour gérer vos parties d'Undercover, avec tirage de rôles, envoi de SMS, et suivi des scores.
 //  Fonctionnalités : Déroulement de partie, conditions de 
 //  victoire, SMS d'élimination, classement des joueurs.
 // ============================================================
@@ -257,7 +259,7 @@ async function startApp() {
       // ─────────────────────────────────────────────
       // VUE : MENU PRINCIPAL
       if (appState.view === "main") {
-        addHeader("🕵️ UNDERCOVER", "Scriptable Edition");
+        addHeader("🕵️ UNDERCOVER", `Scriptable Edition - v${APP_VERSION}`);
         addRow("🎮", "Lancer une partie", "Configurer et démarrer", Color.blue(), () => { appState.view = "config"; render(); });
         addRow("👥", "Gérer les joueurs", `${appState.players.length} enregistré(s)`, null, () => { appState.view = "players"; render(); });
         addRow("🏆", "Classement & Scores", "Statistiques des joueurs", Color.orange(), () => { appState.view = "stats"; render(); });
@@ -281,10 +283,32 @@ async function startApp() {
           tCell.titleFont = Font.boldSystemFont(18);
           table.addRow(rTitle);
 
+          const wrapText = (str, maxChars) => {
+            const words = str.split(' ');
+            let lines = [];
+            let currentLine = "";
+            words.forEach(word => {
+              if ((currentLine + word).length > maxChars) {
+                if (currentLine.length > 0) lines.push(currentLine.trim());
+                currentLine = word + " ";
+              } else {
+                currentLine += word + " ";
+              }
+            });
+            if (currentLine.trim().length > 0) lines.push(currentLine.trim());
+            return lines;
+          };
+
+          let allLines = [];
+          text.split('\n').forEach(p => {
+            allLines = allLines.concat(wrapText(p, 42));
+          });
+
           let rText = new UITableRow();
-          let cText = rText.addText(text);
+          let cText = rText.addText(allLines.join('\n'));
           cText.titleFont = Font.systemFont(15);
           cText.titleColor = Color.dynamic(Color.darkGray(), Color.lightGray());
+          rText.height = Math.max(44, allLines.length * 20 + 10);
           table.addRow(rText);
         };
 
@@ -491,14 +515,14 @@ async function startApp() {
         let effMW = appState.game.nbMW;
         let isValid = n >= 3 && (effInfil > 0 || effMW > 0) && (n - effInfil - effMW > 0);
 
-        addHeader("🎮 Nouvelle Partie", `${n} sélectionnés | Civils: ${Math.max(0, n - effInfil - effMW)} | Inf: ${effInfil} | MW: ${effMW}`);
+        addHeader("Nouvelle Partie", `${n} sélectionnés | Civils: ${Math.max(0, n - effInfil - effMW)} | Inf: ${effInfil} | MW: ${effMW}`);
         addRow("◀", "Retour au menu", "", Color.orange(), () => { appState.view = "main"; render(); });
         
         addRow("⚙️", "Réglages de la partie", "Modifier mots, pseudos...", null, () => {
           appState.prevView = "config"; appState.view = "advanced"; render();
         });
 
-        addRow("🚀", "LANCER LA PARTIE", isValid ? "Cliquez pour démarrer" : "Sélectionnez 3 joueurs min.", isValid ? Color.blue() : Color.gray(), () => {
+        addRow("LANCER LA PARTIE", isValid ? "Cliquez pour démarrer" : "Sélectionnez 3 joueurs min.", isValid ? Color.blue() : Color.gray(), () => {
           if (isValid) resolve("launch");
         }, isValid);
 

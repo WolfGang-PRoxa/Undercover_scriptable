@@ -3,7 +3,9 @@
 // icon-color: deep-purple; icon-glyph: user-secret;
 // ============================================================
 //  UNDERCOVER — Scriptable Script (Shortcut-like)
-//  Version: 1.0 (Full Game, Scores, Restored Contacts)
+//  Version: 1.0
+//  Author: ~WolfGang_PRoxa~
+//  Description: A script to manage your Undercover games, with role assignment, SMS sending, and score tracking.
 //  Features: Game flow, victory conditions, 
 //  elimination SMS, player leaderboard.
 // ============================================================
@@ -266,7 +268,7 @@ async function startApp() {
       // ─────────────────────────────────────────────
       // VIEW : MAIN MENU
       if (appState.view === "main") {
-        addHeader("🕵️ UNDERCOVER", "Scriptable Edition");
+        addHeader("🕵️ UNDERCOVER", `Scriptable Edition - v${APP_VERSION}`);
         addRow("🎮", "Start a game", "Configure and start", Color.blue(), () => { appState.view = "config"; render(); });
         addRow("👥", "Manage players", `${appState.players.length} registered`, null, () => { appState.view = "players"; render(); });
         addRow("🏆", "Leaderboard & Scores", "Player statistics", Color.orange(), () => { appState.view = "stats"; render(); });
@@ -290,10 +292,32 @@ async function startApp() {
           tCell.titleFont = Font.boldSystemFont(18);
           table.addRow(rTitle);
 
+          const wrapText = (str, maxChars) => {
+            const words = str.split(' ');
+            let lines = [];
+            let currentLine = "";
+            words.forEach(word => {
+              if ((currentLine + word).length > maxChars) {
+                if (currentLine.length > 0) lines.push(currentLine.trim());
+                currentLine = word + " ";
+              } else {
+                currentLine += word + " ";
+              }
+            });
+            if (currentLine.trim().length > 0) lines.push(currentLine.trim());
+            return lines;
+          };
+
+          let allLines = [];
+          text.split('\n').forEach(p => {
+            allLines = allLines.concat(wrapText(p, 42));
+          });
+
           let rText = new UITableRow();
-          let cText = rText.addText(text);
+          let cText = rText.addText(allLines.join('\n'));
           cText.titleFont = Font.systemFont(15);
           cText.titleColor = Color.dynamic(Color.darkGray(), Color.lightGray());
+          rText.height = Math.max(44, allLines.length * 20 + 10);
           table.addRow(rText);
         };
 
@@ -499,14 +523,14 @@ async function startApp() {
         let effMW = appState.game.nbMW;
         let isValid = n >= 3 && (effInfil > 0 || effMW > 0) && (n - effInfil - effMW > 0);
 
-        addHeader("🎮 New Game", `${n} selected | Civilians: ${Math.max(0, n - effInfil - effMW)} | Und: ${effInfil} | MW: ${effMW}`);
+        addHeader("New Game", `${n} selected | Civilians: ${Math.max(0, n - effInfil - effMW)} | Und: ${effInfil} | MW: ${effMW}`);
         addRow("◀", "Back to menu", "", Color.orange(), () => { appState.view = "main"; render(); });
         
         addRow("⚙️", "Game settings", "Edit words, nicknames...", null, () => {
           appState.prevView = "config"; appState.view = "advanced"; render();
         });
 
-        addRow("🚀", "START GAME", isValid ? "Click to start" : "Select at least 3 players", isValid ? Color.blue() : Color.gray(), () => {
+        addRow("START GAME", isValid ? "Click to start" : "Select at least 3 players", isValid ? Color.blue() : Color.gray(), () => {
           if (isValid) resolve("launch");
         }, isValid);
 
